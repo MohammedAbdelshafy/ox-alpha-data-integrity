@@ -31,7 +31,7 @@ runs:
     - name: Run integrity audit
       shell: bash
       run: |
-        cd "${{ github.action_path }}/_ox_alpha" 2>/dev/null || cd _ox_alpha
+        cd _ox_alpha
         args="${{ github.workspace }}/${{ inputs.path }}"
         if [ -n "${{ inputs.required }}" ]; then args="$args --required ${{ inputs.required }}"; fi
         python3 -m ox_alpha audit $args --fail-on "${{ inputs.fail-on }}" --out-dir "${{ github.workspace }}/${{ inputs.out-dir }}"
