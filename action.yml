@@ -1,0 +1,37 @@
+name: 'OX-Alpha Data Integrity'
+description: 'Audit CSV/JSON datasets in CI: schema validation, anomaly and duplicate detection, drift checks, quality reports.'
+author: 'Mohammed Abdelshafy'
+branding:
+  icon: 'shield'
+  color: 'blue'
+inputs:
+  path:
+    description: 'Dataset file to audit (CSV or JSON), relative to your repo root'
+    required: true
+  required:
+    description: 'Comma-separated list of required columns'
+    required: false
+    default: ''
+  fail-on:
+    description: 'Minimum severity that fails the run: info, warning, or error'
+    required: false
+    default: 'error'
+  out-dir:
+    description: 'Directory for the audit report'
+    required: false
+    default: './ox-alpha-report'
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout OX-Alpha
+      uses: actions/checkout@v4
+      with:
+        repository: MohammedAbdelshafy/ox-alpha-data-integrity
+        path: _ox_alpha
+    - name: Run integrity audit
+      shell: bash
+      run: |
+        cd "${{ github.action_path }}/_ox_alpha" 2>/dev/null || cd _ox_alpha
+        args="${{ github.workspace }}/${{ inputs.path }}"
+        if [ -n "${{ inputs.required }}" ]; then args="$args --required ${{ inputs.required }}"; fi
+        python3 -m ox_alpha audit $args --fail-on "${{ inputs.fail-on }}" --out-dir "${{ github.workspace }}/${{ inputs.out-dir }}"
