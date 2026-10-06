@@ -10,37 +10,76 @@ import hashlib
 import io
 import json
 import math
+import os
 from collections import Counter
 from datetime import datetime, timezone
 
 NUMERIC = {"int", "float"}
 
+SUPPORTED_EXTENSIONS = (".csv", ".json", ".jsonl")
+
 
 # ---------------------------------------------------------------- loading
+
+def _require_object_rows(rows: list, path: str) -> list[dict]:
+    """JSON/JSONL rows must all be objects; fail loudly otherwise."""
+    for i, r in enumerate(rows, start=1):
+        if not isinstance(r, dict):
+            raise ValueError(
+                f"{path}: row {i} is {type(r).__name__}, not an object — "
+                "JSON/JSONL input must be a list of objects")
+    return [dict(r) for r in rows]
+
 
 def load_table(path: str) -> tuple[list[str], list[dict]]:
     """Load a CSV, JSON array, or JSONL file into (columns, rows).
 
     All cell values are kept as raw strings except JSON native types;
     empty strings and None count as nulls.
+
+    Raises FileNotFoundError if the file doesn't exist, and ValueError
+    with a descriptive message for unsupported extensions, undecodable
+    bytes, or malformed JSON/JSONL.
     """
-    lower = path.lower()
+    ext = os.path.splitext(path.lower())[1]
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise ValueError(
+            f"unsupported file type {ext or '(no extension)'} for {path!r}: "
+            f"expected one of {', '.join(SUPPORTED_EXTENSIONS)}")
+
     with open(path, "rb") as fh:
         raw = fh.read()
-    text = raw.decode("utf-8-sig")
+    try:
+        text = raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise ValueError(f"cannot decode {path!r} as UTF-8: {exc}") from exc
 
-    if lower.endswith(".jsonl"):
-        rows = [json.loads(line) for line in text.splitlines() if line.strip()]
-        columns = _union_columns(rows)
-        return columns, rows
-    if lower.endswith(".json"):
-        data = json.loads(text)
+    if ext == ".jsonl":
+        rows: list = []
+        for lineno, line in enumerate(text.splitlines(), start=1):
+            if not line.strip():
+                continue
+            try:
+                rows.append(json.loads(line))
+            except json.JSONDecodeError as exc:
+                raise ValueError(
+                    f"{path}: invalid JSON on line {lineno}: {exc.msg}") from exc
+        rows = _require_object_rows(rows, path)
+        return _union_columns(rows), rows
+
+    if ext == ".json":
+        try:
+            data = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"{path}: invalid JSON: {exc.msg}") from exc
         if isinstance(data, dict) and "rows" in data and isinstance(data["rows"], list):
             data = data["rows"]
         if not isinstance(data, list):
-            raise ValueError("JSON input must be a list of objects (or {\"rows\": [...]})")
-        columns = _union_columns(data)
-        return columns, [dict(r) for r in data]
+            raise ValueError(
+                f"{path}: JSON input must be a list of objects (or {{\"rows\": [...]}}), "
+                f"got {type(data).__name__}")
+        rows = _require_object_rows(data, path)
+        return _union_columns(rows), rows
 
     # CSV
     reader = csv.DictReader(io.StringIO(text))
@@ -89,26 +128,29 @@ def _scalar_type(value) -> str:
     except ValueError:
         pass
     try:
-        float(s)
-        return "float"
+        # Non-finite strings ("nan", "inf") are not usable numbers;
+        # typing them as float would poison stats and emit invalid JSON.
+        return "float" if math.isfinite(float(s)) else "str"
     except ValueError:
         pass
     return "str"
 
 
 def _to_float(value):
-    """Best-effort numeric conversion; None if not numeric."""
+    """Best-effort numeric conversion; None if not numeric or non-finite."""
     if isinstance(value, bool):
         return None
     if isinstance(value, (int, float)):
-        return float(value)
+        f = float(value)
+        return f if math.isfinite(f) else None
     s = str(value).strip()
     if s == "":
         return None
     try:
-        return float(s)
+        f = float(s)
     except ValueError:
         return None
+    return f if math.isfinite(f) else None
 
 
 # ---------------------------------------------------------------- audit
@@ -151,8 +193,20 @@ def validate_rows(columns: list[str], rows: list[dict], schema: dict,
     missing required fields. Returns list of finding dicts."""
     findings: list[dict] = []
     required = required or []
+    # A typo'd --required should surface once, clearly — not as one
+    # missing_required error per row.
+    unknown = [c for c in required if c not in columns]
+    for col in unknown:
+        findings.append({
+            "severity": "error",
+            "kind": "unknown_required_column",
+            "column": col,
+            "message": (f"Required column '{col}' not found in dataset "
+                        f"(columns: {', '.join(columns) or 'none'})"),
+        })
+    known_required = [c for c in required if c in columns]
     for i, row in enumerate(rows, start=1):  # 1-based row numbers (data rows)
-        for col in required:
+        for col in known_required:
             v = row.get(col)
             if v is None or (isinstance(v, str) and v.strip() == ""):
                 findings.append({
@@ -167,8 +221,6 @@ def validate_rows(columns: list[str], rows: list[dict], schema: dict,
                 continue
             want = schema[col]["inferred_type"]
             got = _scalar_type(v)
-            if want in NUMERIC and got not in NUMERIC and got != "str":
-                pass
             if want in NUMERIC and got == "str":
                 findings.append({
                     "severity": "error",
@@ -224,13 +276,19 @@ def find_outliers(columns: list[str], rows: list[dict], schema: dict) -> list[di
     return findings
 
 
+def _norm_key(k):
+    """DictReader parks CSV fields beyond the header under a None key,
+    which json.dumps(sort_keys=True) cannot order against str keys."""
+    return k if isinstance(k, str) else f"__extra_field_{k!r}"
+
+
 def find_duplicates(rows: list[dict]) -> list[dict]:
     """Exact duplicate rows (all columns equal, null-normalized)."""
     seen: dict[str, list[int]] = {}
     for i, row in enumerate(rows, start=1):
         key = json.dumps(
-            {k: (None if (v is None or (isinstance(v, str) and v.strip() == "")) else v)
-             for k, v in sorted(row.items())},
+            {_norm_key(k): (None if (v is None or (isinstance(v, str) and v.strip() == "")) else v)
+             for k, v in row.items()},
             sort_keys=True, default=str)
         seen.setdefault(key, []).append(i)
     findings = []
@@ -249,7 +307,25 @@ def audit(path: str, required: list[str] | None = None) -> dict:
     """Run the full audit; returns the report dict."""
     columns, rows = load_table(path)
     schema = infer_schema(columns, rows)
-    findings = []
+    findings: list[dict] = []
+    if not rows:
+        findings.append({
+            "severity": "warning",
+            "kind": "empty_input",
+            "message": f"No data rows found in {path!r}; nothing to audit",
+        })
+    # csv.DictReader parks fields beyond the header under a None key.
+    ragged = [i for i, r in enumerate(rows, start=1) if None in r]
+    if ragged:
+        shown = ragged[:10]
+        suffix = f" (+{len(ragged) - len(shown)} more)" if len(ragged) > len(shown) else ""
+        findings.append({
+            "severity": "warning",
+            "kind": "ragged_row",
+            "rows": ragged,
+            "message": (f"Rows {shown}{suffix} have more fields than the header "
+                        f"({len(columns)} columns); extra values were kept but not typed"),
+        })
     findings += validate_rows(columns, rows, schema, required)
     findings += find_outliers(columns, rows, schema)
     findings += find_duplicates(rows)

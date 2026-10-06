@@ -47,6 +47,23 @@ python3 -m ox_alpha drift before.csv after.csv --out-dir ./drift-report
 Exit codes: `0` = OK (or no findings at the `--fail-on` severity), `2` = findings at or above
 the threshold, `1` = input/parse error. Default `--fail-on` is `error`.
 
+`--version` prints the tool version.
+
+## GitHub Action
+
+This repo is published as a GitHub Action (`v1`). Use it in a workflow to gate CI on dataset quality:
+
+```yaml
+- uses: MohammedAbdelshafy/ox-alpha-data-integrity@v1
+  with:
+    path: data/customers.csv      # CSV or JSON/JSONL, relative to your repo root
+    required: 'email,id'          # optional: columns that must be non-empty
+    fail-on: error                # optional: error (default), warning, or none
+    out-dir: ./ox-alpha-report    # optional: where report.md + report.json go
+```
+
+The step fails (exit 2) when findings at or above `fail-on` exist.
+
 ## Example
 
 `samples/customers.csv` ships with the repo:
@@ -63,8 +80,13 @@ Running `python3 -m ox_alpha audit samples/customers.csv --out-dir ./report` pro
 
 ## Inputs and outputs
 
-- Inputs: `.csv` (header row required), `.json` (array of objects), `.jsonl` (one object per line).
+- Inputs: `.csv` (header row required), `.json` (array of objects, or `{"rows": [...]}`),
+  `.jsonl` (one object per line). Other extensions are rejected with a clear error;
+  files must be UTF-8 decodable.
 - Outputs: `report.md` and `report.json` in the chosen `--out-dir`.
+- A file with no data rows still produces a report, with an `empty_input` warning finding.
+- A `--required` column that doesn't exist in the dataset produces one clear
+  `unknown_required_column` error instead of one error per row.
 
 ## Limits
 

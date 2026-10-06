@@ -10,6 +10,14 @@ import sys
 from .core import audit, drift, report_markdown
 
 
+def _tool_version() -> str:
+    try:
+        from importlib.metadata import version
+        return version("ox-alpha-data-integrity")
+    except Exception:  # not installed (e.g. running from a source checkout)
+        return "0.1.0"
+
+
 def _write_reports(report: dict, out_dir: str) -> None:
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "report.json"), "w", encoding="utf-8") as fh:
@@ -52,7 +60,14 @@ def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="ox-alpha",
         description="Audit CSV/JSON/JSONL datasets: schema inference, validation, "
-                    "outlier and duplicate detection, drift checks, quality reports.")
+                    "outlier and duplicate detection, drift checks, quality reports.",
+        epilog="examples:\n"
+               "  ox-alpha audit data.csv --required email,id\n"
+               "  ox-alpha audit data.json --out-dir ./report --fail-on warning\n"
+               "  ox-alpha drift before.csv after.csv --out-dir ./drift-report",
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("--version", action="version",
+                   version=f"%(prog)s {_tool_version()}")
     sub = p.add_subparsers(dest="command", required=True)
 
     a = sub.add_parser("audit", help="Audit one dataset file and write report.md + report.json")
@@ -80,7 +95,17 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         return args.func(args)
-    except (FileNotFoundError, ValueError, json.JSONDecodeError, csv.Error) as exc:
+    except FileNotFoundError as exc:
+        print(f"ox-alpha: error: file not found: {exc.filename or exc}",
+              file=sys.stderr)
+        return 1
+    except OSError as exc:
+        # PermissionError, unreadable output dir, disk errors, ...
+        detail = exc.strerror or type(exc).__name__
+        where = f": {exc.filename}" if exc.filename else ""
+        print(f"ox-alpha: error: {detail}{where}", file=sys.stderr)
+        return 1
+    except (ValueError, json.JSONDecodeError, csv.Error) as exc:
         print(f"ox-alpha: error: {exc}", file=sys.stderr)
         return 1
 

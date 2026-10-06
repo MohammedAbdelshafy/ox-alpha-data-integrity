@@ -143,6 +143,116 @@ def main() -> int:
     dd = json.load(open(os.path.join(out_dir_d, "report.json")))
     check("drift json valid", dd["command"] == "drift" and dd["row_delta"] == 1)
 
+    print("== input validation ==")
+
+    def expect_value_error(name, fn, needle):
+        try:
+            fn()
+        except ValueError as exc:
+            check(name, needle in str(exc), str(exc))
+        except Exception as exc:  # noqa: BLE001 - wrong exception type is a failure
+            check(name, False, f"wrong exception: {type(exc).__name__}: {exc}")
+        else:
+            check(name, False, "no exception raised")
+
+    txt = os.path.join(tmp, "data.txt")
+    open(txt, "w").write("hello\n")
+    expect_value_error("unsupported extension rejected",
+                       lambda: audit(txt), "unsupported file type")
+    noext = os.path.join(tmp, "noext")
+    open(noext, "w").write("a,b\n1,2\n")
+    expect_value_error("missing extension rejected",
+                       lambda: audit(noext), "no extension")
+
+    scalars = os.path.join(tmp, "scalars.json")
+    open(scalars, "w").write("[1, 2, 3]")
+    expect_value_error("json array of scalars rejected",
+                       lambda: audit(scalars), "not an object")
+    notlist = os.path.join(tmp, "notlist.json")
+    open(notlist, "w").write('{"a": 1}')
+    expect_value_error("json non-list rejected",
+                       lambda: audit(notlist), "must be a list of objects")
+    wrapped = os.path.join(tmp, "wrapped.json")
+    json.dump({"rows": [{"a": 1}, {"a": 2}]}, open(wrapped, "w"))
+    rep = audit(wrapped)
+    check("json {rows:[...]} still accepted", rep["row_count"] == 2, str(rep["row_count"]))
+
+    badl = os.path.join(tmp, "bad.jsonl")
+    open(badl, "w").write('{"a": 1}\nNOT JSON\n')
+    expect_value_error("jsonl bad line reports line number",
+                       lambda: audit(badl), "line 2")
+    scalarl = os.path.join(tmp, "scalar.jsonl")
+    open(scalarl, "w").write('{"a": 1}\n42\n')
+    expect_value_error("jsonl scalar line rejected",
+                       lambda: audit(scalarl), "not an object")
+
+    latin = os.path.join(tmp, "latin.csv")
+    open(latin, "wb").write(b"a,b\n\xff\xfe,2\n")
+    expect_value_error("non-utf8 rejected", lambda: audit(latin), "UTF-8")
+
+    print("== edge cases ==")
+    nanf = os.path.join(tmp, "nan.csv")
+    open(nanf, "w").write("a,b\n1,NaN\n2,3.5\n")
+    rep = audit(nanf)
+    check("NaN string typed as str", rep["schema"]["b"]["inferred_type"] == "str",
+          str(rep["schema"]["b"]["inferred_type"]))
+    out_dir_nan = os.path.join(tmp, "report-nan")
+    r = run_cli("audit", nanf, "--out-dir", out_dir_nan, "--fail-on", "none", cwd=tmp)
+    check("nan cli exit 0", r.returncode == 0, r.stderr)
+    raw_js = open(os.path.join(out_dir_nan, "report.json")).read()
+
+    def _boom(x):
+        raise ValueError("non-finite constant: " + x)
+
+    try:
+        json.loads(raw_js, parse_constant=_boom)
+        check("report.json strictly valid (no bare NaN/Infinity)", True)
+    except ValueError as exc:
+        check("report.json strictly valid (no bare NaN/Infinity)", False, str(exc))
+
+    nanj = os.path.join(tmp, "nanj.json")
+    open(nanj, "w").write('[{"a": 1, "b": NaN}, {"a": 2, "b": 3.5}]')
+    rep = audit(nanj)  # must not crash; native NaN excluded from stats
+    check("native json NaN tolerated",
+          rep["schema"]["b"].get("numeric_count", 0) == 1, str(rep["schema"]["b"]))
+
+    longrow = os.path.join(tmp, "long.csv")
+    open(longrow, "w").write("a,b\n1,2,EXTRA\n3,4\n")
+    rep = audit(longrow)  # must not crash on the None-keyed extra field
+    ragged = [f for f in rep["findings"] if f["kind"] == "ragged_row"]
+    check("ragged row flagged", len(ragged) == 1 and ragged[0]["rows"] == [1],
+          str(ragged))
+
+    rep = audit(clean, required=["zzz"])
+    unk = [f for f in rep["findings"] if f["kind"] == "unknown_required_column"]
+    per_row = [f for f in rep["findings"] if f["kind"] == "missing_required"]
+    check("unknown required column: single clear error",
+          len(unk) == 1 and rep["error_count"] == 1 and not per_row,
+          str([f["kind"] for f in rep["findings"]]))
+
+    empty = os.path.join(tmp, "empty.csv")
+    open(empty, "w").write("")
+    rep = audit(empty)
+    check("empty file warns empty_input",
+          any(f["kind"] == "empty_input" and f["severity"] == "warning"
+              for f in rep["findings"]),
+          str([f["kind"] for f in rep["findings"]]))
+
+    print("== cli errors ==")
+    r = run_cli("audit", os.path.join(tmp, "does-not-exist.csv"),
+                "--out-dir", os.path.join(tmp, "r-missing"), cwd=tmp)
+    check("missing file exit 1", r.returncode == 1, str(r.returncode))
+    check("missing file message", "file not found" in r.stderr, r.stderr.strip()[:120])
+    r = run_cli("drift", os.path.join(tmp, "does-not-exist.csv"), clean,
+                "--out-dir", os.path.join(tmp, "r-missing2"), cwd=tmp)
+    check("drift missing file exit 1", r.returncode == 1, str(r.returncode))
+    r = run_cli("audit", txt, "--out-dir", os.path.join(tmp, "r-txt"), cwd=tmp)
+    check("cli rejects bad extension", r.returncode == 1 and "unsupported file type" in r.stderr,
+          r.stderr.strip()[:120])
+    r = run_cli("--version", cwd=tmp)
+    check("--version works", r.returncode == 0 and "ox-alpha" in r.stdout,
+          (r.stdout + r.stderr).strip()[:80])
+
     print(f"\n{PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0
 
