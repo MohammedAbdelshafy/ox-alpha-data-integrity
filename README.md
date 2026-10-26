@@ -1,6 +1,6 @@
-# Data Integrity Checkup
+# OX-Alpha
 
-Data Integrity Checkup is a small Python tool for checking CSV, JSON and JSONL files before they are used in reports, imports or automated workflows. The project was previously called OX-Alpha Data Integrity; the repository name, Python package and CLI command remain unchanged for compatibility.
+OX-Alpha checks CSV, JSON and JSONL files before they are used in reports, imports or automated workflows. It reports supported data-quality issues and changes between snapshots.
 
 ## What it checks
 
@@ -103,7 +103,7 @@ python3 tests/run_tests.py
 
 ## Project details
 
-- Customer-facing name: Data Integrity Checkup
+- Product name: OX-Alpha
 - Previous product name: OX-Alpha Data Integrity
 - Python package: `ox_alpha` (unchanged)
 - Command: `ox-alpha` (unchanged)

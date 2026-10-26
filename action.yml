@@ -1,4 +1,4 @@
-name: 'Data Integrity Checkup'
+name: 'OX-Alpha'
 description: 'Check CSV/JSON datasets in CI and report missing fields, data issues, duplicates and changes between snapshots.'
 author: 'Mohammed Abdelshafy'
 branding:
@@ -23,7 +23,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Checkout Data Integrity Checkup
+    - name: Checkout OX-Alpha
       uses: actions/checkout@v4
       with:
         repository: MohammedAbdelshafy/ox-alpha-data-integrity
