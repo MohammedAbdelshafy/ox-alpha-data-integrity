@@ -2,11 +2,11 @@
 type: repository
 status: active
 owner_repo: MohammedAbdelshafy/ox-alpha-data-integrity
-product_name: Data Integrity Checkup
+product_name: OX-Alpha
 source_of_truth: https://github.com/MohammedAbdelshafy/ox-alpha-data-integrity
 ---
 
-# Data Integrity Checkup CONTEXT
+# OX-Alpha CONTEXT
 
 One job: check a supplied dataset and return a report that helps a person decide whether it is fit for the next step.
 

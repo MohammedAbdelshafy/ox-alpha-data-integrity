@@ -1,6 +1,6 @@
-# Data Integrity Checkup
+# OX-Alpha
 
-Use this repository to inspect tabular data quality. The product-facing name is **Data Integrity Checkup**; the repository slug, Python package, CLI and GitHub Action identifiers remain unchanged for compatibility.
+Use this repository to inspect tabular data quality. The approved product name is **OX-Alpha**. The repository slug, Python package, CLI and GitHub Action identifiers remain unchanged for compatibility.
 
 ## Where to go
 
