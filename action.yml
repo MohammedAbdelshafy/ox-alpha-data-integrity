@@ -1,12 +1,12 @@
-name: 'OX-Alpha Data Integrity'
-description: 'Audit CSV/JSON datasets in CI: schema validation, anomaly and duplicate detection, drift checks, quality reports.'
+name: 'Data Integrity Checkup'
+description: 'Check CSV/JSON datasets in CI and report missing fields, data issues, duplicates and changes between snapshots.'
 author: 'Mohammed Abdelshafy'
 branding:
   icon: 'shield'
   color: 'blue'
 inputs:
   path:
-    description: 'Dataset file to audit (CSV or JSON), relative to your repo root'
+    description: 'Dataset file to check (CSV, JSON or JSONL), relative to your repo root'
     required: true
   required:
     description: 'Comma-separated list of required columns'
@@ -23,7 +23,7 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Checkout OX-Alpha
+    - name: Checkout Data Integrity Checkup
       uses: actions/checkout@v4
       with:
         repository: MohammedAbdelshafy/ox-alpha-data-integrity
