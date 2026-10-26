@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ox-alpha-data-integrity"
 version = "0.1.0"
-description = "CLI that audits CSV/JSON datasets: schema inference, validation, anomaly and duplicate detection, drift checks, quality reports."
+description = "Check CSV, JSON and JSONL files for missing fields, inconsistent types, duplicate rows and changes between snapshots."
 authors = [{name = "Mohammed Abdelshafy"}]
 readme = "README.md"
 license = { text = "MIT" }
