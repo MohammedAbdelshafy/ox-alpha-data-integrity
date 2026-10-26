@@ -1,8 +1,8 @@
-# OX-Alpha Data Integrity
+# Data Integrity Checkup
 
-A small Python CLI that audits tabular datasets (CSV, JSON, JSONL) for data-quality issues.
+Data Integrity Checkup is a small Python tool for checking CSV, JSON and JSONL files before they are used in reports, imports or automated workflows. The project was previously called OX-Alpha Data Integrity; the repository name, Python package and CLI command remain unchanged for compatibility.
 
-What it does:
+## What it checks
 
 - **audit** — reads one dataset file and:
   - infers a schema per column (inferred type, null count, distinct count, min/max/mean/std for numerics),
@@ -88,7 +88,7 @@ Running `python3 -m ox_alpha audit samples/customers.csv --out-dir ./report` pro
 - A `--required` column that doesn't exist in the dataset produces one clear
   `unknown_required_column` error instead of one error per row.
 
-## Limits
+## What to know before using it
 
 - Files are loaded fully into memory — best suited to files under roughly 1M rows.
 - Type inference is heuristic (int/float/bool/str); ambiguous columns fall back to `str`.
@@ -100,6 +100,14 @@ Running `python3 -m ox_alpha audit samples/customers.csv --out-dir ./report` pro
 ```bash
 python3 tests/run_tests.py
 ```
+
+## Project details
+
+- Customer-facing name: Data Integrity Checkup
+- Previous product name: OX-Alpha Data Integrity
+- Python package: `ox_alpha` (unchanged)
+- Command: `ox-alpha` (unchanged)
+- Repository: `ox-alpha-data-integrity` (unchanged)
 
 ## License
 
