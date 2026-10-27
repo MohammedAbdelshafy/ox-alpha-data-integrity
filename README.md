@@ -10,6 +10,14 @@ OX-Alpha checks CSV, JSON, and JSONL files and compares two dataset snapshots. I
 
 OX-Alpha is the product name. **Data Quality Checks** is its plain-language description, not a product rename.
 
+## The outcome
+
+- Find missing required fields, inconsistent data types, exact duplicate rows, and unusual numeric values before a file is used downstream.
+- Compare two snapshots to see whether the structure or key numeric summaries changed.
+- Give your team a readable report plus JSON output, with an optional CI pass/fail gate.
+
+The point is not another dashboard. It is an earlier, clearer signal that a file needs attention.
+
 ## What it checks, and why it matters
 
 - **audit** — check a file before using it in an import, report, or automated workflow. It:
@@ -21,6 +29,13 @@ OX-Alpha is the product name. **Data Quality Checks** is its plain-language desc
   - writes `report.md` (human-readable) and `report.json` (machine-readable) into the output directory.
 - **drift** — compare two snapshots to spot added/removed columns, type changes,
   row-count delta, checksum comparison, and numeric mean shifts.
+
+## What OX-Alpha does not do
+
+- It is a file-based check, not continuous production monitoring.
+- It reports findings; it does not repair or write back to your source dataset.
+- Duplicate detection is exact-match only, not fuzzy matching.
+- It does not verify real-world facts or prove that contact details are reachable.
 
 ## Install
 
@@ -121,10 +136,3 @@ python3 tests/run_tests.py
 
 MIT — see [LICENSE](LICENSE).
 
-
-## What OX-Alpha does not claim
-
-- It is a file-based check, not a continuously running data-monitoring service.
-- It reports findings; it does not automatically repair or write back to the source dataset.
-- Duplicate detection is exact-match only, not fuzzy matching.
-- It cannot confirm that the real-world facts in a row are true or that contact details are reachable.
