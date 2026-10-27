@@ -1,17 +1,25 @@
-# OX-Alpha
+# OX-Alpha | Data Quality Checks
 
-OX-Alpha checks CSV, JSON and JSONL files before they are used in reports, imports or automated workflows. It reports supported data-quality issues and changes between snapshots.
+**Catch data problems before they reach your reports, imports, and automated workflows.**
 
-## What it checks
+OX-Alpha checks CSV, JSON, and JSONL files and compares two dataset snapshots. It shows what looks wrong, creates a report your team can review, and can fail a CI workflow when findings meet the severity you choose.
 
-- **audit** — reads one dataset file and:
+**For:** developers, data teams, and operators who receive structured files from exports, partners, internal systems, or scheduled jobs.
+
+**What you get:** a readable Markdown report, a machine-readable JSON report, and an optional pass/fail signal for your workflow.
+
+OX-Alpha is the product name. **Data Quality Checks** is its plain-language description, not a product rename.
+
+## What it checks, and why it matters
+
+- **audit** — check a file before using it in an import, report, or automated workflow. It:
   - infers a schema per column (inferred type, null count, distinct count, min/max/mean/std for numerics),
   - validates rows (type violations, missing required fields via `--required`),
   - flags outliers on numeric columns (IQR rule),
   - detects exact duplicate rows,
   - computes a SHA-256 checksum of the input file,
   - writes `report.md` (human-readable) and `report.json` (machine-readable) into the output directory.
-- **drift** — compares two dataset files and reports added/removed columns, type changes,
+- **drift** — compare two snapshots to spot added/removed columns, type changes,
   row-count delta, checksum comparison, and numeric mean shifts.
 
 ## Install
@@ -51,7 +59,7 @@ the threshold, `1` = input/parse error. Default `--fail-on` is `error`.
 
 ## GitHub Action
 
-This repo is published as a GitHub Action (`v1`). Use it in a workflow to gate CI on dataset quality:
+Use OX-Alpha as a GitHub Action (`v1`) to check a dataset during CI and fail the workflow when findings reach your chosen severity:
 
 ```yaml
 - uses: MohammedAbdelshafy/ox-alpha-data-integrity@v1
@@ -62,7 +70,7 @@ This repo is published as a GitHub Action (`v1`). Use it in a workflow to gate C
     out-dir: ./ox-alpha-report    # optional: where report.md + report.json go
 ```
 
-The step fails (exit 2) when findings at or above `fail-on` exist.
+**Outcome:** the workflow receives a clear pass/fail signal and a report when the dataset does not meet the selected threshold.
 
 ## Example
 
@@ -88,7 +96,7 @@ Running `python3 -m ox_alpha audit samples/customers.csv --out-dir ./report` pro
 - A `--required` column that doesn't exist in the dataset produces one clear
   `unknown_required_column` error instead of one error per row.
 
-## What to know before using it
+## Limits to understand before you rely on it
 
 - Files are loaded fully into memory — best suited to files under roughly 1M rows.
 - Type inference is heuristic (int/float/bool/str); ambiguous columns fall back to `str`.
@@ -104,7 +112,7 @@ python3 tests/run_tests.py
 ## Project details
 
 - Product name: OX-Alpha
-- Previous product name: OX-Alpha Data Integrity
+- Plain-language description: Data Quality Checks for CSV, JSON, and JSONL files
 - Python package: `ox_alpha` (unchanged)
 - Command: `ox-alpha` (unchanged)
 - Repository: `ox-alpha-data-integrity` (unchanged)
@@ -112,3 +120,11 @@ python3 tests/run_tests.py
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+
+## What OX-Alpha does not claim
+
+- It is a file-based check, not a continuously running data-monitoring service.
+- It reports findings; it does not automatically repair or write back to the source dataset.
+- Duplicate detection is exact-match only, not fuzzy matching.
+- It cannot confirm that the real-world facts in a row are true or that contact details are reachable.
