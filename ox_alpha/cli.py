@@ -1,4 +1,4 @@
-"""Data Integrity Checkup command-line tool."""
+"""OX-Alpha data-quality checks command-line tool."""
 from __future__ import annotations
 
 import argparse
@@ -59,8 +59,8 @@ def cmd_drift(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="ox-alpha",
-        description="Check CSV, JSON or JSONL files and report missing fields, data issues, "
-                    "exact duplicates and changes between snapshots.",
+        description="Run data-quality checks on CSV, JSON, or JSONL files before downstream use, "
+                    "and compare snapshots to see what changed.",
         epilog="examples:\n"
                "  ox-alpha audit data.csv --required email,id\n"
                "  ox-alpha audit data.json --out-dir ./report --fail-on warning\n"
@@ -70,7 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
                    version=f"%(prog)s {_tool_version()}")
     sub = p.add_subparsers(dest="command", required=True)
 
-    a = sub.add_parser("audit", help="Check one dataset file and write report.md + report.json")
+    a = sub.add_parser("audit", help="Check one dataset and create a readable report")
     a.add_argument("path", help="Input file: .csv, .json (array of objects), or .jsonl")
     a.add_argument("--required", default=None,
                    help="Comma-separated columns that must be non-empty in every row")
@@ -80,7 +80,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="Exit non-zero when findings at this severity exist (default: error)")
     a.set_defaults(func=cmd_audit)
 
-    d = sub.add_parser("drift", help="Compare two dataset files and report what changed")
+    d = sub.add_parser("drift", help="Compare two dataset snapshots and report what changed")
     d.add_argument("before", help="Baseline file")
     d.add_argument("after", help="New file to compare against the baseline")
     d.add_argument("--out-dir", default="ox-alpha-report",
