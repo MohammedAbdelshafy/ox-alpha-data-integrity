@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ox-alpha-data-integrity"
 version = "0.1.0"
-description = "OX-Alpha checks CSV, JSON and JSONL files for data-quality issues and changes between snapshots."
+description = "Data-quality checks for CSV, JSON and JSONL files, including missing required fields, type issues, exact duplicates, outliers and changes between snapshots."
 authors = [{name = "Mohammed Abdelshafy"}]
 readme = "README.md"
 license = { text = "MIT" }

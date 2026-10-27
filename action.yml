@@ -1,5 +1,5 @@
-name: 'OX-Alpha'
-description: 'Check CSV/JSON datasets in CI and report missing fields, data issues, duplicates and changes between snapshots.'
+name: 'OX-Alpha Data Quality Checks'
+description: 'Check a CSV/JSON/JSONL dataset in CI, report data-quality findings, and fail the workflow at your chosen severity.'
 author: 'Mohammed Abdelshafy'
 branding:
   icon: 'shield'
@@ -23,12 +23,12 @@ inputs:
 runs:
   using: 'composite'
   steps:
-    - name: Checkout OX-Alpha
+    - name: Checkout OX-Alpha Data Quality Checks
       uses: actions/checkout@v4
       with:
         repository: MohammedAbdelshafy/ox-alpha-data-integrity
         path: _ox_alpha
-    - name: Run integrity audit
+    - name: Run OX-Alpha data-quality checks
       shell: bash
       run: |
         cd _ox_alpha
