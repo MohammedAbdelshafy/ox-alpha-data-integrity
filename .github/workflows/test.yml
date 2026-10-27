@@ -1,0 +1,37 @@
+name: OX-Alpha Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Run the repository test suite
+        run: python tests/run_tests.py
+
+      - name: Smoke-test the CLI against the bundled sample
+        run: |
+          python -m ox_alpha audit samples/customers.csv --out-dir .tmp/ox-alpha-smoke --fail-on none
+          python -c "from pathlib import Path; p=Path('.tmp/ox-alpha-smoke'); assert (p/'report.md').is_file(); assert (p/'report.json').is_file(); print('CLI smoke test produced both reports')"
